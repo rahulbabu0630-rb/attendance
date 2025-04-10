@@ -113,7 +113,7 @@ const AboutUs = () => {
           <div className="text-left">
             <h3 className="text-2xl font-serif font-bold text-[#5a4634] mb-4">PAST</h3>
             <p className="text-lg font-medium text-gray-700 leading-relaxed mt-4">
-              For over 32 years, Sri Durga Sweets & Bakery has been a name synonymous with tradition, taste, and trust.
+              Sri Durga Sweets & Bakery has been a name synonymous with tradition, taste, and trust for over 32 Years.
               What started as a humble stall under the name <strong className="text-[#5a4634]">Sri Durga Devi Sweets & Generals</strong> has now grown into a beloved
               bakery that serves generations of customers with the same passion and dedication.
             </p>
