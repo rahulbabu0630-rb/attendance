@@ -8,17 +8,47 @@ const Home = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Memoize products data
+  // Updated products data with proper image names from categories
   const products = useMemo(() => [
-    { name: "Gifting", image: "/assets/products/gifting.jpg", gradient: "from-purple-600/80 to-pink-600/80" },
-    { name: "Cakes", image: "/assets/products/cakes.jpg", gradient: "from-amber-600/80 to-orange-600/80" },
-    { name: "Dry Fruits", image: "/assets/products/dryfruits.jpg", gradient: "from-yellow-600/80 to-amber-600/80" },
-    { name: "Ghee Sweets", image: "/assets/products/ghee.jpg", gradient: "from-red-600/80 to-pink-600/80" },
-    { name: "Namkeen", image: "/assets/products/namkeen.jpg", gradient: "from-green-600/80 to-emerald-600/80" },
-    { name: "Ice Cream", image: "/assets/products/icecream.jpg", gradient: "from-blue-400/80 to-indigo-600/80" },
+    { 
+     
+      image: "/assets/products/gifting.jpg", 
+      gradient: "from-purple-600/80 to-pink-600/80",
+      category: "GIFTINGS"
+    },
+    { 
+      
+      image: "/assets/products/cakes.jpg", 
+      gradient: "from-amber-600/80 to-orange-600/80",
+      category: "CAKES & PASTRIES"
+    },
+    { 
+      
+      image: "/assets/products/dryfruits.jpg", 
+      gradient: "from-yellow-600/80 to-amber-600/80",
+      category: "DRY FRUITS"
+    },
+    { 
+      
+      image: "/assets/products/ghee.jpg", 
+      gradient: "from-red-600/80 to-pink-600/80",
+      category: "GHEE FOODS"
+    },
+    { 
+     
+      image: "/assets/products/namkeen.jpg", 
+      gradient: "from-green-600/80 to-emerald-600/80",
+      category: "NAMKEEM"
+    },
+    { 
+      
+      image: "/assets/products/icecream.jpg", 
+      gradient: "from-blue-400/80 to-indigo-600/80",
+      category: "ICE CREAM"
+    },
   ], []);
 
-  // Updated categories data
+  // Categories data
   const categories = useMemo(() => [
     {id: 1, text: 'HOME FOODS'}, 
     {id: 2, text: '|', isSeparator: true}, 
@@ -78,32 +108,26 @@ const Home = () => {
   };
 
   const activePage = getActivePage();
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-pink-50 to-red-50 flex items-center justify-center z-50">
         <div className="relative">
           <div className="w-16 h-16 rounded-full relative overflow-hidden">
-            {/* Outer subtle glow */}
             <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-red-600 opacity-20 rounded-full" />
-  
-            {/* Spinning ring */}
             <div 
               className="absolute inset-0 border-4 border-transparent rounded-full animate-spin"
               style={{
                 borderTopColor: 'transparent',
-                borderRightColor: '#EC4899', // pink-500
+                borderRightColor: '#EC4899',
                 borderBottomColor: 'transparent',
-                borderLeftColor: '#DC2626', // red-600
+                borderLeftColor: '#DC2626',
               }}
             />
-  
-            {/* Center core with white blinking dot */}
             <div className="absolute inset-2 rounded-full bg-gradient-to-br from-pink-500 to-red-600 flex items-center justify-center">
               <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
             </div>
           </div>
-  
-          {/* Loading text */}
           <p className="mt-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-red-600 font-medium">
             Loading
           </p>
@@ -111,7 +135,6 @@ const Home = () => {
       </div>
     );
   }
-  
 
   const fallbackLogoSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e91e63'/%3E%3Ctext x='50%' y='50%' font-size='20' fill='white' text-anchor='middle' dominant-baseline='middle'%3ELogo%3C/text%3E%3C/svg%3E";
 
@@ -204,7 +227,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Product Grid */}
+      {/* Product Grid with Enhanced 3D Effect */}
       <section className="w-full px-4 sm:px-6 py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-0">
           <h2 className="text-4xl sm:text-5xl font-semibold text-center text-red-700/90 mb-8 sm:mb-12">Our Top Picks</h2>
@@ -215,13 +238,13 @@ const Home = () => {
               return (
                 <div 
                   key={product.name} 
-                  className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 w-full"
+                  className="group relative overflow-hidden rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 w-full transform hover:-translate-y-2"
                 >
-                  <div className="aspect-w-4 aspect-h-3 w-full">
+                  <div className="aspect-w-4 aspect-h-3 w-full h-[400px] sm:h-[500px] overflow-hidden">
                     <img
                       src={product.image}
                       alt={product.name}
-                      className="w-full h-[400px] sm:h-[500px] object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       onError={(e) => {
                         e.target.onerror = null;
                         e.target.src = fallbackImage;
@@ -229,10 +252,15 @@ const Home = () => {
                       loading="lazy"
                     />
                   </div>
-                  <div className={`absolute inset-0 bg-gradient-to-t ${product.gradient} via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6 sm:p-8`}>
-                    <h3 className="text-white text-3xl sm:text-4xl font-bold translate-y-6 group-hover:translate-y-0 transition-transform duration-300">
-                      {product.name}
-                    </h3>
+                  <div className={`absolute inset-0 bg-gradient-to-t ${product.gradient} via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-6 sm:p-8`}>
+                    <div className="transform translate-y-8 group-hover:translate-y-0 transition-transform duration-500">
+                      <h3 className="text-white text-3xl sm:text-4xl font-bold mb-2">
+                        {product.name}
+                      </h3>
+                      <p className="text-pink-100 text-lg font-medium">
+                        {product.category}
+                      </p>
+                    </div>
                   </div>
                 </div>
               );
@@ -243,15 +271,15 @@ const Home = () => {
 
       {/* About Us Section */}
       <section id="about" className="w-full py-16 px-4 sm:px-6 lg:px-8 bg-white">
-      <div className="max-w-7xl mx-auto">
-        <AboutUs />
+        <div className="max-w-7xl mx-auto">
+          <AboutUs />
         </div>
       </section>
 
       {/* Gallery Section */}
       <section id="gallery" className="w-full py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#5d375a] to-[#1b020f]">
-      <div className="max-w-7xl mx-auto">
-      <Gallery />
+        <div className="max-w-7xl mx-auto">
+          <Gallery />
         </div>
       </section>
     </div>
