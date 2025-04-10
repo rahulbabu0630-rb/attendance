@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import axios from 'axios';
-import { debounce } from 'lodash';
+import debounce from 'lodash.debounce';
 
 const EmployeeDirectory = () => {
   const DEFAULT_PROFILE_ICON = '/assets/default.png';

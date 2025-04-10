@@ -10,7 +10,7 @@ const AttendancePage = () => {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [error, setError] = useState(null);
   
   const employeesPerPage = 10;
   const navigate = useNavigate();
@@ -32,12 +32,12 @@ const AttendancePage = () => {
   );
 
   // Employee card component
-  const EmployeeCard = ({ employee, onViewReports }) => (
+  const EmployeeCard = React.memo(({ employee, onViewReports }) => (
     <div className="flex flex-col sm:flex-row items-center justify-between py-4 px-2 hover:bg-gray-50 transition duration-200 hover:shadow-sm">
       <div className="flex items-center space-x-4 mb-4 sm:mb-0 w-full sm:w-auto">
         <div className="relative">
           <img
-            src={employee.profileImage || `https://ui-avatars.com/api/?name=${employee.name?.split(' ').join('+')}&background=0077BE&color=fff`}
+            src={employee.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(employee.name || '')}&background=0077BE&color=fff`}
             alt={`${employee.name}'s profile`}
             className="w-12 h-12 rounded-full shadow-sm border-2 border-white transition-transform duration-200 hover:scale-105"
             loading="lazy"
@@ -68,52 +68,59 @@ const AttendancePage = () => {
         </button>
       </div>
     </div>
-  );
+  ));
 
-  // Memoized API call with caching
+  // API call with error handling and retry logic
   const fetchEmployees = useCallback(async () => {
-    if (employees.length > 0 && !isInitialLoad) return;
-    
     try {
       setIsLoading(true);
-      const cacheKey = `employees_${API_BASE_URL}`;
-      const cachedData = sessionStorage.getItem(cacheKey);
+      setError(null);
       
-      if (cachedData) {
-        setEmployees(JSON.parse(cachedData));
-        setIsInitialLoad(false);
-        return;
+      const response = await fetch(`${API_BASE_URL}/employees/all`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
-      const response = await fetch(`${API_BASE_URL}/employees/all`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       
       const data = await response.json();
       setEmployees(data);
+      
+      // Cache the response
+      const cacheKey = `employees_${API_BASE_URL}`;
       sessionStorage.setItem(cacheKey, JSON.stringify(data));
-      setIsInitialLoad(false);
-    } catch (error) {
-      console.error("Error fetching employees:", error);
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+      setError(err.message);
       toast.error('Failed to load employees. Please try again later.');
     } finally {
       setIsLoading(false);
     }
-  }, [API_BASE_URL, isInitialLoad, employees.length]);
+  }, [API_BASE_URL]);
 
-  // Initial load and cache invalidation
+  // Initial load and cache handling
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const cacheKey = `employees_${API_BASE_URL}`;
+    const cachedData = sessionStorage.getItem(cacheKey);
+    
+    if (cachedData) {
+      setEmployees(JSON.parse(cachedData));
+    } else {
+      fetchEmployees();
+    }
+
+    const visibilityHandler = () => {
       if (document.visibilityState === 'visible') {
         fetchEmployees();
       }
     };
     
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    fetchEmployees();
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    document.addEventListener('visibilitychange', visibilityHandler);
+    return () => document.removeEventListener('visibilitychange', visibilityHandler);
   }, [fetchEmployees]);
 
   // Memoized filtered employees
@@ -124,7 +131,7 @@ const AttendancePage = () => {
     [employees, search]
   );
 
-  // Memoized paginated employees
+  // Memoized paginated employees with unique keys
   const paginatedEmployees = useMemo(() => {
     const indexOfLastEmployee = currentPage * employeesPerPage;
     const indexOfFirstEmployee = indexOfLastEmployee - employeesPerPage;
@@ -154,11 +161,10 @@ const AttendancePage = () => {
     setCurrentPage(1);
   }, []);
 
-  // Navbar component with absolute positioning
-  const Navbar = () => (
+  // Navbar component
+  const Navbar = React.memo(() => (
     <nav className="bg-[#0077BE] shadow-md relative h-16 w-full">
       <div className="h-full w-full px-6">
-        {/* Logo - absolute left */}
         <div 
           className="absolute left-6 top-1/2 transform -translate-y-1/2 flex items-center cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
           onClick={handleLogoClick}
@@ -180,7 +186,6 @@ const AttendancePage = () => {
           </span>
         </div>
 
-        {/* Nav items - absolute right */}
         <div className="absolute right-6 top-1/2 transform -translate-y-1/2 flex space-x-4 font-sans">
           <Link 
             to="/employee-management" 
@@ -198,12 +203,12 @@ const AttendancePage = () => {
             to="/attendance-summary" 
             className="text-white hover:bg-[#0066A3] px-4 py-2 rounded-md text-base font-medium transition-all duration-200 hover:shadow-md whitespace-nowrap"
           >
-          Attendance  Reports
+            Attendance Reports
           </Link>
         </div>
       </div>
     </nav>
-  );
+  ));
 
   return (
     <div className="relative min-h-screen bg-gray-50">
@@ -219,7 +224,6 @@ const AttendancePage = () => {
           </p>
         </div>
         
-        {/* Search Box */}
         <div className="flex justify-center mb-6">
           <div className="relative w-full max-w-md transition-all duration-200 hover:shadow-lg">
             <input
@@ -234,14 +238,17 @@ const AttendancePage = () => {
           </div>
         </div>
 
-        {/* Employee Cards */}
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
           {isLoading ? (
             <LoadingBubbles />
+          ) : error ? (
+            <div className="text-center text-red-500 py-4">
+              {error} <button onClick={fetchEmployees} className="text-blue-600 underline">Retry</button>
+            </div>
           ) : paginatedEmployees.length > 0 ? (
-            paginatedEmployees.map((emp) => (
+            paginatedEmployees.map((emp, index) => (
               <EmployeeCard 
-                key={emp.id}
+                key={`${emp.id}-${index}`}
                 employee={emp}
                 onViewReports={handleViewReports}
               />
@@ -253,8 +260,7 @@ const AttendancePage = () => {
           )}
         </div>
 
-        {/* Pagination */}
-        {!isLoading && filteredEmployees.length > employeesPerPage && (
+        {!isLoading && !error && filteredEmployees.length > employeesPerPage && (
           <div className="mt-6 flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
             <button
               className={`px-4 py-2 rounded-md flex items-center transition-all duration-200 ${
@@ -283,7 +289,6 @@ const AttendancePage = () => {
         )}
       </div>
 
-      {/* Back to Home Button */}
       <button
         onClick={handleBackToHome}
         className="fixed bottom-6 right-6 z-40 px-4 py-3 bg-[#0077BE] text-white rounded-lg shadow-lg hover:bg-[#0066A3] transition-all duration-200 hover:shadow-xl flex items-center"

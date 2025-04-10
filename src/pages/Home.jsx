@@ -18,7 +18,7 @@ const Home = () => {
     { name: "Ice Cream", image: "/assets/products/icecream.jpg", gradient: "from-blue-400/80 to-indigo-600/80" },
   ], []);
 
-  // Updated categories data - removed empty items
+  // Updated categories data
   const categories = useMemo(() => [
     {id: 1, text: 'HOME FOODS'}, 
     {id: 2, text: '|', isSeparator: true}, 
@@ -31,8 +31,9 @@ const Home = () => {
     {id: 9, text: 'ICE CREAM'},
     {id: 10, text: '|', isSeparator: true},
     {id: 11, text: 'NAMKEEM'},
-    {id: 12, text: 'GIFTINGS'},
-    {id: 10, text: '~PROPRIETOR : CH . RAMU'}
+    {id: 12, text: '|', isSeparator: true},
+    {id: 13, text: 'GIFTINGS'},
+    {id: 14, text: '~PROPRIETOR : CH . RAMU'}
   ], []);
 
   const navItems = useMemo(() => ['Home', 'About Us', 'Gallery', 'Attendance', 'Contact Us'], []);
@@ -77,33 +78,40 @@ const Home = () => {
   };
 
   const activePage = getActivePage();
-
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-gradient-to-br from-pink-50 to-red-50 flex items-center justify-center z-50">
         <div className="relative">
           <div className="w-16 h-16 rounded-full relative overflow-hidden">
+            {/* Outer subtle glow */}
             <div className="absolute inset-0 bg-gradient-to-br from-pink-500 to-red-600 opacity-20 rounded-full" />
+  
+            {/* Spinning ring */}
             <div 
               className="absolute inset-0 border-4 border-transparent rounded-full animate-spin"
               style={{
                 borderTopColor: 'transparent',
-                borderRightColor: '#EC4899',
+                borderRightColor: '#EC4899', // pink-500
                 borderBottomColor: 'transparent',
-                borderLeftColor: '#DC2626',
+                borderLeftColor: '#DC2626', // red-600
               }}
             />
+  
+            {/* Center core with white blinking dot */}
             <div className="absolute inset-2 rounded-full bg-gradient-to-br from-pink-500 to-red-600 flex items-center justify-center">
-              {/* Removed the blinking dot element */}
+              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
             </div>
           </div>
+  
+          {/* Loading text */}
           <p className="mt-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-red-600 font-medium">
-            Loading 
+            Loading
           </p>
         </div>
       </div>
     );
   }
+  
 
   const fallbackLogoSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23e91e63'/%3E%3Ctext x='50%' y='50%' font-size='20' fill='white' text-anchor='middle' dominant-baseline='middle'%3ELogo%3C/text%3E%3C/svg%3E";
 
@@ -178,9 +186,9 @@ const Home = () => {
           </h1>
         </div>
 
-        {/* Updated Categories Section */}
+        {/* Categories Section */}
         <div className="flex flex-col items-center mt-8 sm:mt-12">
-          <div className="w-full overflow-x-auto px-2 py-2 hide-scrollbar">
+          <div className="w-full overflow-x-auto px-2 py-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <div className="flex flex-nowrap justify-start gap-2 sm:gap-3 md:gap-4 min-w-max px-2">
               {categories.map((category) => (
                 <span 
@@ -234,27 +242,18 @@ const Home = () => {
       </section>
 
       {/* About Us Section */}
-      <section id="about" className="w-full min-h-screen">
+      <section id="about" className="w-full py-16 px-4 sm:px-6 lg:px-8 bg-white">
+      <div className="max-w-7xl mx-auto">
         <AboutUs />
-      </section>
-
-      {/* Gallery Section */}
-      <section id="gallery" className="w-full min-h-screen bg-gradient-to-b from-[#5d375a] to-[#1b020f] py-16">
-        <div className="max-w-7xl mx-auto px-4">
-          <Gallery />
         </div>
       </section>
 
-      {/* Add custom CSS for hiding scrollbar */}
-      <style jsx>{`
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
+      {/* Gallery Section */}
+      <section id="gallery" className="w-full py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#5d375a] to-[#1b020f]">
+      <div className="max-w-7xl mx-auto">
+      <Gallery />
+        </div>
+      </section>
     </div>
   );
 };

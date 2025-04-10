@@ -48,27 +48,33 @@ const AttendanceSummary = () => {
   // Data fetching functions
   const fetchEmployees = useCallback(async () => {
     try {
+      setLoading(prev => ({ ...prev, employees: true }));
       const response = await axios.get(`${API_BASE_URL}/employees/all`);
       setEmployees(response.data);
-      if (employeeId) setSelectedEmployee(employeeId);
-      setLoading(prev => ({ ...prev, employees: false }));
+      if (employeeId) {
+        setSelectedEmployee(employeeId);
+        // Fetch salary immediately if employee is preselected
+        await fetchMonthlySalary(employeeId);
+      }
+      setError('');
     } catch (err) {
       console.error("Error fetching employees:", err);
       setError('Failed to load employees');
+    } finally {
       setLoading(prev => ({ ...prev, employees: false }));
     }
   }, [employeeId, API_BASE_URL]);
 
-  const fetchMonthlySalary = useCallback(async () => {
-    if (!selectedEmployee) {
+  const fetchMonthlySalary = useCallback(async (empId) => {
+    if (!empId) {
       setSummary(prev => ({ ...prev, monthlySalary: 0 }));
       return;
     }
 
     setLoading(prev => ({ ...prev, salary: true }));
     try {
-      const response = await axios.get(`${API_BASE_URL}/employees/getById/${selectedEmployee}`);
-      const salary = response.data.salary || 0;
+      const response = await axios.get(`${API_BASE_URL}/employees/getById/${empId}`);
+      const salary = response.data?.salary || 0;
       setSummary(prev => ({
         ...prev,
         monthlySalary: salary
@@ -76,7 +82,7 @@ const AttendanceSummary = () => {
       setError('');
     } catch (err) {
       console.error("Error fetching salary:", err);
-      const employee = employees.find(e => e.id === selectedEmployee);
+      const employee = employees.find(e => e.id === empId);
       setSummary(prev => ({
         ...prev,
         monthlySalary: employee?.salary || 0
@@ -85,26 +91,37 @@ const AttendanceSummary = () => {
     } finally {
       setLoading(prev => ({ ...prev, salary: false }));
     }
-  }, [selectedEmployee, employees, API_BASE_URL]);
+  }, [employees, API_BASE_URL]);
 
   const fetchAttendanceData = useCallback(async () => {
     if (!selectedEmployee && employeeId) return;
 
     setLoading(prev => ({ ...prev, attendance: true }));
     try {
-      const url = selectedEmployee 
-        ? `${API_BASE_URL}/attendance/filter?employeeId=${selectedEmployee}&year=${selectedYear}&month=${selectedMonth}`
-        : `${API_BASE_URL}/attendance/filter?year=${selectedYear}&month=${selectedMonth}`;
-
-      const response = await axios.get(url);
-      const records = response.data.sort((a, b) => new Date(a.date) - new Date(b.date));
+      const params = {
+        year: selectedYear,
+        month: selectedMonth
+      };
       
+      if (selectedEmployee) {
+        params.employeeId = selectedEmployee;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/attendance/filter`, {
+        params,
+        paramsSerializer: {
+          indexes: null // Correctly handles array params if needed
+        }
+      });
+
+      const records = response.data.sort((a, b) => new Date(a.date) - new Date(b.date));
       setAttendanceData(records);
       calculateSummary(records);
       setError('');
     } catch (err) {
       console.error("Error fetching attendance:", err);
-      setError('Failed to load attendance data');
+      setError(err.response?.data?.message || 'Failed to load attendance data');
+      setAttendanceData([]);
     } finally {
       setLoading(prev => ({ ...prev, attendance: false }));
     }
@@ -121,7 +138,7 @@ const AttendanceSummary = () => {
     };
 
     records.forEach(record => {
-      switch(record.status.toLowerCase()) {
+      switch(record.status?.toLowerCase()) {
         case 'present':
           calculatedSummary.present++;
           calculatedSummary.totalSalary += dailyRate;
@@ -134,6 +151,9 @@ const AttendanceSummary = () => {
         case 'absent':
           calculatedSummary.absent++;
           break;
+        default:
+          // Handle unknown status
+          break;
       }
     });
 
@@ -141,8 +161,9 @@ const AttendanceSummary = () => {
   }, [summary.monthlySalary, dailyRate]);
 
   // Handlers
-  const handleEmployeeChange = (empId) => {
+  const handleEmployeeChange = async (empId) => {
     setSelectedEmployee(empId);
+    await fetchMonthlySalary(empId);
     navigate(empId ? `/attendance-summary/${empId}` : '/attendance-summary', {
       state: { year: selectedYear, month: selectedMonth }
     });
@@ -168,12 +189,8 @@ const AttendanceSummary = () => {
   }, [fetchEmployees]);
 
   useEffect(() => {
-    const loadData = async () => {
-      await fetchMonthlySalary();
-      await fetchAttendanceData();
-    };
-    loadData();
-  }, [fetchMonthlySalary, fetchAttendanceData]);
+    fetchAttendanceData();
+  }, [fetchAttendanceData]);
 
   const isLoading = loading.employees || loading.salary || loading.attendance;
 
@@ -204,7 +221,11 @@ const AttendanceSummary = () => {
         })}
       />
 
-      {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">{error}</div>}
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6">
+          {error}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-center py-8">
@@ -244,7 +265,6 @@ const AttendanceSummary = () => {
         className="fixed bottom-6 right-6 z-40 px-4 py-3 rounded-full shadow-xl text-white font-medium flex items-center gap-2"
         style={{
           background: 'linear-gradient(135deg, #4f46e5, #8b5cf6)',
-          transformStyle: 'preserve-3d',
           boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.12)'
         }}
         whileHover={{ 
@@ -280,6 +300,7 @@ const formatDate = (dateString) => {
 };
 
 const capitalizeFirstLetter = (string) => {
+  if (!string) return '';
   return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 };
 

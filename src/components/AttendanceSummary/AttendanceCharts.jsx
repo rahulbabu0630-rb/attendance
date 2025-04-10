@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const AttendanceCharts = ({ summary, attendanceData, selectedEmployee }) => {
   const pieData = [
@@ -23,49 +23,58 @@ const AttendanceCharts = ({ summary, attendanceData, selectedEmployee }) => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
       <div className="bg-white p-4 rounded-lg shadow-md">
         <h2 className="text-lg font-semibold mb-4">Attendance Distribution</h2>
-        <PieChart width={400} height={300}>
-          <Pie
-            data={pieData}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            outerRadius={80}
-            fill="#8884d8"
-            dataKey="value"
-            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-          >
-            {pieData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip />
-          <Legend />
-        </PieChart>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              >
+                {pieData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value, name, props) => [
+                  value, 
+                  name,
+                  `${(props.payload.percent * 100).toFixed(1)}%`
+                ]}
+              />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div className="bg-white p-4 rounded-lg shadow-md">
-        <h2 className="text-lg font-semibold mb-10">Daily Attendance</h2>
-        <BarChart
-          width={500}
-          height={300}
-          data={barData}
-          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip 
-            formatter={(value, name, props) => [
-              value, 
-              name,
-              props.payload.employeeName ? `Employee: ${props.payload.employeeName}` : ''
-            ]}
-          />
-          <Legend />
-          <Bar dataKey="present" stackId="a" fill="#4CAF50" name="Present" />
-          <Bar dataKey="halfday" stackId="a" fill="#FFC107" name="Half Day" />
-          <Bar dataKey="absent" stackId="a" fill="#F44336" name="Absent" />
-        </BarChart>
+        <h2 className="text-lg font-semibold mb-4">Daily Attendance</h2>
+        <div className="h-[300px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={barData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip 
+                formatter={(value, name, props) => [
+                  value, 
+                  name,
+                  props.payload.employeeName ? `Employee: ${props.payload.employeeName}` : ''
+                ]}
+              />
+              <Legend />
+              <Bar dataKey="present" stackId="a" fill="#4CAF50" name="Present" />
+              <Bar dataKey="halfday" stackId="a" fill="#FFC107" name="Half Day" />
+              <Bar dataKey="absent" stackId="a" fill="#F44336" name="Absent" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
