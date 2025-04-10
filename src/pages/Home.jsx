@@ -270,14 +270,14 @@ const Home = () => {
       </section>
 
       {/* About Us Section */}
-      <section id="about" className="w-full py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
+      <section id="about" className="w-full pb-8 sm:pb-16 pt-16 px-4 sm:px-6 lg:px-8 bg-white">
+                <div className="max-w-7xl mx-auto">
           <AboutUs />
         </div>
       </section>
 
       {/* Gallery Section */}
-      <section id="gallery" className="w-full py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#5d375a] to-[#1b020f]">
+      <section id="gallery" className="w-full pt-8 sm:pt-16 pb-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#5d375a] to-[#1b020f]">
         <div className="max-w-7xl mx-auto">
           <Gallery />
         </div>
