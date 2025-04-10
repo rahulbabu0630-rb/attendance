@@ -1,10 +1,13 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import autoprefixer from 'autoprefixer';
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [react() , tailwindcss() , autoprefixer()],
-})
+  plugins: [
+    react(), // Make sure this is properly imported and invoked
+  ],
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+  },
+  
+});
