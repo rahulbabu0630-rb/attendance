@@ -1,8 +1,24 @@
-import React, { useState, useEffect } from "react";
-import shopImage from "../assets/shopbw.jpg"; // Ensure correct path
+import React, { useState, useEffect, useRef } from "react";
 
 const AboutUs = () => {
   const [showButton, setShowButton] = useState(false);
+  const sliderRef = useRef(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Image paths - now pointing to public/assets
+  const carouselImages = [
+    "/assets/about/shopbw.jpg",
+    "/assets/about/shop-interior.jpg"
+  ];
+
+  // Auto-scroll effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % carouselImages.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [carouselImages.length]);
 
   // Show button when user scrolls down
   useEffect(() => {
@@ -19,7 +35,7 @@ const AboutUs = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Add custom scrollbar styles to the global stylesheet
+  // Add custom scrollbar styles
   useEffect(() => {
     const style = document.createElement('style');
     style.innerHTML = `
@@ -57,14 +73,40 @@ const AboutUs = () => {
 
         {/* Layout */}
         <div className="mt-10 grid md:grid-cols-2 gap-12 items-center">
-          {/* Left: Historical Image */}
-          <div className="overflow-hidden rounded-lg shadow-lg transition-transform duration-300 hover:scale-105">
-            <img 
-              src={shopImage} 
-              alt="Historical Shop" 
-              className="w-full h-auto object-cover" 
-              loading="lazy"
-            />
+          {/* Left: Advanced Image Slider */}
+          <div className="overflow-hidden rounded-lg shadow-lg relative h-[500px]">
+            {/* Slides */}
+            <div className="relative w-full h-full">
+              {carouselImages.map((img, index) => (
+                <div
+                  key={index}
+                  className={`absolute inset-0 w-full h-full transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'}`}
+                >
+                  <img 
+                    src={img} 
+                    alt={`About us ${index + 1}`} 
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/assets/about/shopbw.jpg";
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+            
+            {/* Slide Indicators (minimal) */}
+            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
+              {carouselImages.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentSlide(index)}
+                  className={`w-3 h-3 rounded-full transition-colors ${index === currentSlide ? 'bg-[#c9a353]' : 'bg-gray-300'}`}
+                  aria-label={`Go to slide ${index + 1}`}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Right: Text Content */}
