@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { FaSearch, FaUserCircle, FaArrowUp, FaArrowDown, FaArrowLeft, FaSpinner } from "react-icons/fa";
+import { FaSearch, FaUserCircle, FaArrowUp, FaArrowDown, FaArrowLeft, FaSpinner, FaCalendarAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -18,10 +18,16 @@ const BulkAttendancePage = () => {
   const [selectedEmployees, setSelectedEmployees] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isMarking, setIsMarking] = useState(false);
+  const [showDateWarning, setShowDateWarning] = useState(false);
   const navigate = useNavigate();
 
   const today = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [selectedDate, setSelectedDate] = useState(today);
+
+  // Check if selected date is valid (not future date)
+  const isDateValid = useMemo(() => {
+    return selectedDate <= today;
+  }, [selectedDate, today]);
 
   // Memoized toast function
   const showToast = useCallback((type, message) => {
@@ -62,6 +68,13 @@ const BulkAttendancePage = () => {
         toast(message, toastConfig);
     }
   }, []);
+
+  // Show date warning notification
+  const showDateWarningNotification = useCallback(() => {
+    showToast('error', 'Cannot mark attendance for future dates. Please select today or a past date.');
+    setShowDateWarning(true);
+    setTimeout(() => setShowDateWarning(false), 3000);
+  }, [showToast]);
 
   // Optimized employee filtering
   const filteredEmployees = useMemo(() => {
@@ -146,6 +159,16 @@ const BulkAttendancePage = () => {
     }
   }, [filteredEmployees]);
 
+  // Handle date change with validation
+  const handleDateChange = useCallback((e) => {
+    const newDate = e.target.value;
+    setSelectedDate(newDate);
+    
+    if (newDate > today) {
+      showDateWarningNotification();
+    }
+  }, [today, showDateWarningNotification]);
+
   // Optimized bulk attendance marking
   const markBulkAttendance = useCallback(async () => {
     if (!selectedStatus) {
@@ -158,8 +181,8 @@ const BulkAttendancePage = () => {
       return;
     }
 
-    if (selectedDate > today) {
-      showToast('error', 'Cannot mark attendance for future dates');
+    if (!isDateValid) {
+      showDateWarningNotification();
       return;
     }
 
@@ -209,7 +232,7 @@ const BulkAttendancePage = () => {
     } finally {
       setIsMarking(false);
     }
-  }, [selectedStatus, selectedEmployees, selectedDate, today, showToast, employees]);
+  }, [selectedStatus, selectedEmployees, selectedDate, isDateValid, showToast, employees, showDateWarningNotification]);
 
   const handleLogoClick = useCallback(() => {
     navigate('/attendance');
@@ -335,13 +358,21 @@ const BulkAttendancePage = () => {
               </div>
               
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <input 
-                  type="date" 
-                  className="border border-purple-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all duration-300 bg-white text-lg"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  max={today}
-                />
+                <div className="relative">
+                  <input 
+                    type="date" 
+                    className={`border ${isDateValid ? 'border-purple-200' : 'border-red-400'} rounded-lg px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:outline-none transition-all duration-300 bg-white text-lg pr-10`}
+                    value={selectedDate}
+                    onChange={handleDateChange}
+                    max={today}
+                  />
+                  <FaCalendarAlt className={`absolute right-3 top-4 text-lg ${isDateValid ? 'text-purple-400' : 'text-red-500'}`} />
+                  {!isDateValid && (
+                    <div className="absolute -bottom-6 left-0 text-red-500 text-sm font-medium flex items-center">
+                      <span>Cannot mark future dates</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -360,8 +391,8 @@ const BulkAttendancePage = () => {
                   </select>
                   <button 
                     onClick={markBulkAttendance}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto text-lg flex items-center justify-center min-w-[180px]"
-                    disabled={!selectedStatus || selectedCount === 0 || isMarking}
+                    className={`px-6 py-3 bg-gradient-to-r ${isDateValid ? 'from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700' : 'from-gray-400 to-gray-500 cursor-not-allowed'} text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto text-lg flex items-center justify-center min-w-[180px]`}
+                    disabled={!selectedStatus || selectedCount === 0 || isMarking || !isDateValid}
                   >
                     {isMarking ? (
                       <>
