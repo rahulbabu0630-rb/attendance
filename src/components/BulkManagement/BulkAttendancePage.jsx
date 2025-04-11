@@ -1,22 +1,30 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { FaSearch, FaUserCircle, FaArrowUp, FaArrowDown, FaArrowLeft, FaSpinner } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+// Cache for employee data
+const employeeCache = {
+  data: null,
+  timestamp: null,
+  CACHE_DURATION: 5 * 60 * 1000 // 5 minutes cache
+};
+
 const BulkAttendancePage = () => {
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState(""); 
-  const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [selectedEmployees, setSelectedEmployees] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isMarking, setIsMarking] = useState(false);
   const navigate = useNavigate();
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
   const [selectedDate, setSelectedDate] = useState(today);
 
-  const showToast = (type, message) => {
+  // Memoized toast function
+  const showToast = useCallback((type, message) => {
     const toastConfig = {
       position: "top-right",
       autoClose: 5000,
@@ -53,60 +61,99 @@ const BulkAttendancePage = () => {
       default:
         toast(message, toastConfig);
     }
-  };
+  }, []);
 
+  // Optimized employee filtering
   const filteredEmployees = useMemo(() => {
+    if (!search) return employees;
+    
+    const searchLower = search.toLowerCase();
     return employees.filter((emp) => 
-      emp.name.toLowerCase().includes(search.toLowerCase()) ||
+      emp.name.toLowerCase().includes(searchLower) ||
       emp.id.toString().includes(search)
     );
   }, [employees, search]);
 
+  // Fetch employees with caching
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/employees/all`);
+        
+        // Check cache first
+        const now = Date.now();
+        if (employeeCache.data && now - employeeCache.timestamp < employeeCache.CACHE_DURATION) {
+          setEmployees(employeeCache.data);
+          setIsLoading(false);
+          return;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/employees/all`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
         const data = await response.json();
+        
+        // Update cache
+        employeeCache.data = data;
+        employeeCache.timestamp = now;
+        
         setEmployees(data);
       } catch (error) {
         console.error("Error fetching employees:", error);
         showToast('error', 'Failed to load employees. Please try again later.');
+        
+        // Fallback to cache even if stale
+        if (employeeCache.data) {
+          setEmployees(employeeCache.data);
+        }
       } finally {
         setIsLoading(false);
       }
     };
+    
     fetchEmployees();
+  }, [showToast]);
+
+  // Optimized employee selection
+  const handleEmployeeSelect = useCallback((employeeId) => {
+    setSelectedEmployees(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(employeeId)) {
+        newSet.delete(employeeId);
+      } else {
+        newSet.add(employeeId);
+      }
+      return newSet;
+    });
   }, []);
 
-  const handleEmployeeSelect = (employeeId) => {
-    setSelectedEmployees(prev => {
-      if (prev.includes(employeeId)) {
-        return prev.filter(id => id !== employeeId);
-      } else {
-        return [...prev, employeeId];
-      }
-    });
-  };
-
-  const handleSelectAll = (e) => {
+  // Optimized select all
+  const handleSelectAll = useCallback((e) => {
     if (e.target.checked) {
-      setSelectedEmployees(filteredEmployees.map(emp => emp.id));
+      setSelectedEmployees(new Set(filteredEmployees.map(emp => emp.id)));
     } else {
-      setSelectedEmployees([]);
+      setSelectedEmployees(new Set());
     }
-  };
+  }, [filteredEmployees]);
 
-  const markBulkAttendance = async () => {
+  // Optimized bulk attendance marking
+  const markBulkAttendance = useCallback(async () => {
     if (!selectedStatus) {
       showToast('error', 'Please select attendance status');
       return;
     }
 
-    if (selectedEmployees.length === 0) {
+    if (selectedEmployees.size === 0) {
       showToast('error', 'Please select at least one employee');
       return;
     }
@@ -118,62 +165,78 @@ const BulkAttendancePage = () => {
 
     try {
       setIsMarking(true);
+      
+      // Optimistic UI update
+      const employeeIds = Array.from(selectedEmployees);
+      const prevEmployees = [...employees];
+      
+      setEmployees(prev => prev.map(emp => 
+        selectedEmployees.has(emp.id) 
+          ? { ...emp, lastStatus: selectedStatus } 
+          : emp
+      ));
+
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/bulk-attendance/mark`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          employeeIds: selectedEmployees,
+          employeeIds,
           status: selectedStatus,
           date: selectedDate
         })
       });
       
       if (!response.ok) {
+        // Revert optimistic update if failed
+        setEmployees(prevEmployees);
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to mark attendance');
       }
       
       const successMessages = {
-        present: `Successfully marked ${selectedEmployees.length} employees as Present`,
-        absent: `Marked ${selectedEmployees.length} employees as Absent`,
-        halfday: `Marked ${selectedEmployees.length} employees as Half Day`
+        present: `Successfully marked ${employeeIds.length} employees as Present`,
+        absent: `Marked ${employeeIds.length} employees as Absent`,
+        halfday: `Marked ${employeeIds.length} employees as Half Day`
       };
       
       showToast('success', successMessages[selectedStatus]);
-      setSelectedEmployees([]);
+      setSelectedEmployees(new Set());
 
     } catch (error) {
       showToast('error', error.message || 'Failed to mark attendance. Please try again.');
     } finally {
       setIsMarking(false);
     }
-  };
+  }, [selectedStatus, selectedEmployees, selectedDate, today, showToast, employees]);
 
-  const handleLogoClick = () => {
+  const handleLogoClick = useCallback(() => {
     navigate('/attendance');
-  };
+  }, [navigate]);
 
-  const scrollToTop = () => {
+  const scrollToTop = useCallback(() => {
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
     });
-  };
+  }, []);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     window.scrollTo({
       top: document.body.scrollHeight,
       behavior: 'smooth'
     });
-  };
+  }, []);
 
-  const statusColors = {
+  const statusColors = useMemo(() => ({
     present: "bg-purple-100 text-purple-800",
     absent: "bg-pink-100 text-pink-800",
     halfday: "bg-indigo-100 text-indigo-800"
-  };
+  }), []);
+
+  // Memoized employee count
+  const selectedCount = useMemo(() => selectedEmployees.size, [selectedEmployees]);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
@@ -215,6 +278,7 @@ const BulkAttendancePage = () => {
                     e.target.src = 'https://via.placeholder.com/150x40?text=Logo';
                     e.target.className = 'h-10 w-auto max-h-[40px]';
                   }}
+                  loading="lazy"
                 />
                 <span className="ml-2 text-xl font-bold text-white tracking-wide group-hover:text-opacity-80 transition-all duration-300">
                   {import.meta.env.VITE_COMPANY_NAME}
@@ -225,7 +289,7 @@ const BulkAttendancePage = () => {
             {/* Nav items - absolutely positioned right */}
             <div className="absolute right-4 flex items-center space-x-4">
               <button 
-                onClick={() => navigate('/attendance')}
+                onClick={handleLogoClick}
                 className="flex items-center px-3 py-1 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all duration-300"
               >
                 <FaArrowLeft className="mr-1" />
@@ -297,7 +361,7 @@ const BulkAttendancePage = () => {
                   <button 
                     onClick={markBulkAttendance}
                     className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto text-lg flex items-center justify-center min-w-[180px]"
-                    disabled={!selectedStatus || selectedEmployees.length === 0 || isMarking}
+                    disabled={!selectedStatus || selectedCount === 0 || isMarking}
                   >
                     {isMarking ? (
                       <>
@@ -310,7 +374,7 @@ const BulkAttendancePage = () => {
                   </button>
                 </div>
                 <div className="text-lg text-purple-700 font-medium">
-                  {selectedEmployees.length} employees selected
+                  {selectedCount} employees selected
                 </div>
               </div>
 
@@ -322,7 +386,7 @@ const BulkAttendancePage = () => {
                         <input 
                           type="checkbox" 
                           className="h-5 w-5 text-purple-600 rounded focus:ring-purple-500 transition-all duration-300"
-                          checked={selectedEmployees.length === filteredEmployees.length && filteredEmployees.length > 0}
+                          checked={selectedCount === filteredEmployees.length && filteredEmployees.length > 0}
                           onChange={handleSelectAll}
                         />
                       </th>
@@ -339,7 +403,7 @@ const BulkAttendancePage = () => {
                             <input 
                               type="checkbox" 
                               className="h-5 w-5 text-purple-600 rounded focus:ring-purple-500 transition-all duration-300"
-                              checked={selectedEmployees.includes(emp.id)}
+                              checked={selectedEmployees.has(emp.id)}
                               onChange={() => handleEmployeeSelect(emp.id)}
                             />
                           </td>
@@ -351,6 +415,7 @@ const BulkAttendancePage = () => {
                                   src={emp.profileImage}
                                   alt="Profile"
                                   className="w-10 h-10 rounded-full mr-4 shadow-sm border-2 border-purple-200 transform transition-all duration-300 hover:scale-110"
+                                  loading="lazy"
                                 />
                               ) : (
                                 <FaUserCircle className="w-10 h-10 rounded-full mr-4 text-purple-400" />
@@ -362,9 +427,13 @@ const BulkAttendancePage = () => {
                             </div>
                           </td>
                           <td className="px-8 py-5 whitespace-nowrap text-lg">
-                            {selectedStatus && selectedEmployees.includes(emp.id) ? (
+                            {selectedStatus && selectedEmployees.has(emp.id) ? (
                               <span className={`px-3 py-2 text-sm font-semibold rounded-full ${statusColors[selectedStatus]}`}>
                                 {selectedStatus}
+                              </span>
+                            ) : emp.lastStatus ? (
+                              <span className={`px-3 py-2 text-sm font-semibold rounded-full ${statusColors[emp.lastStatus]}`}>
+                                {emp.lastStatus}
                               </span>
                             ) : '-'}
                           </td>
